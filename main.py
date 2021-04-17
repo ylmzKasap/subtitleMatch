@@ -3,14 +3,30 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 
 
 PATH_OF_MOVIES = Path.cwd() / "movies"
+# WARNING: Every '.mp4' file in the output path will be deleted each time the script runs.
 OUTPUT_PATH = Path.cwd() / "output"
-KEYWORD = "well then".lower()
+
+try:
+    KEYWORD = sys.argv[1]
+except IndexError:
+    print("\nA word or a phrase is required to extract.\n")
+    print("Example Use: 'main.py potato'\n")
+    sys.exit()
 
 if not OUTPUT_PATH.exists():
     OUTPUT_PATH.mkdir()
+
+try:
+    if sys.argv[2] == "c":
+        outputDecision = "chooseExports"
+    else:
+        outputDecision = "extractAll"
+except IndexError:
+    outputDecision = "extractAll"
 
 movieNameRegex = re.compile(r"[-&'\w+\s]+")
 
@@ -97,35 +113,105 @@ for movie in allMovies:
             totalMatchNumber = len(matches) + 1
             matches[f"match{totalMatchNumber}"] = SubtitleEvent(event, movie, movieFile)
 
+allMatchInstances = list(matches.values())
+
 # Remove previous output files.
 for file in os.listdir(OUTPUT_PATH):
-    os.unlink(OUTPUT_PATH / file)
+    if file.endswith(".mp4"):
+        os.unlink(OUTPUT_PATH / file)
 
 # Extract the scenes.
-for i, match in enumerate(matches.values(), 1):
-    # Find an available filename.
-    outIndex = 1
-    while True:
-        if not (OUTPUT_PATH / f"{match.movieName} - {KEYWORD}_{outIndex}.mp4").exists():
-            outFilename = f"{match.movieName} - {KEYWORD}_{outIndex}.mp4"
-            break
-        outIndex += 1
+if outputDecision == "extractAll":
+    for match in allMatchInstances:
+        # Find an available filename.
+        outIndex = 1
+        while True:
+            if not (OUTPUT_PATH / f"{match.movieName} - {KEYWORD}_{outIndex}.mp4").exists():
+                outFilename = f"{match.movieName} - {KEYWORD}_{outIndex}.mp4"
+                break
+            outIndex += 1
 
-    # Extract.
-    subprocess.run(
-        ["ffmpeg/ffmpeg",
-         "-ss",
-         str(match.in_time()),
-         "-i",
-         str(PATH_OF_MOVIES / match.movie / match.videoName),
-         "-t",
-         str(match.scene_duration()),
-         "-c",
-         "copy",
-         "-avoid_negative_ts",
-         "1",
-         str(OUTPUT_PATH / outFilename)]
-    )
+        # Extract.
+        subprocess.run(
+            ["ffmpeg/ffmpeg",
+             "-ss",
+             str(match.in_time()),
+             "-i",
+             str(PATH_OF_MOVIES / match.movie / match.videoName),
+             "-t",
+             str(match.scene_duration()),
+             "-c",
+             "copy",
+             "-avoid_negative_ts",
+             "1",
+             str(OUTPUT_PATH / outFilename)]
+        )
+
+elif outputDecision == "chooseExports":
+    exportedSegments = []
+    if len(allMatchInstances) > 0:
+        # Choose the segments to extract.
+        while True:
+            print("\nEnter 'exp' to end the selection. Enter '-' to delete the last decision.")
+            print("\n\nEnter a number to extract its video segment:")
+            for i, match in enumerate(allMatchInstances, 1):
+                print(f"\n{i}. {match.movieName} | {match.subContent}")
+            possibleExtractions = [str(i) for i in range(1, len(allMatchInstances) + 1)]
+
+            if len(exportedSegments) > 0:
+                print("\nSegments to be exported:")
+                print(', '.join(exportedSegments))
+
+            extractDecision = input("> ").strip()
+
+            if extractDecision == "-":
+                try:
+                    os.system("cls")
+                    exportedSegments.pop()
+                    continue
+                except IndexError:
+                    continue
+
+            if extractDecision == "exp":
+                break
+
+            if extractDecision not in possibleExtractions:
+                os.system("cls")
+                print(f"\nThere are {len(allMatchInstances)} instances in total.")
+                continue
+
+            if extractDecision in exportedSegments:
+                os.system("cls")
+                print("\nThis segment is already in the export list.")
+                continue
+            exportedSegments.append(extractDecision)
+            os.system("cls")
+
+        for exportNumber in exportedSegments:
+            exportNumber = int(exportNumber)
+            currentMatch = allMatchInstances[exportNumber - 1]
+            outIndex = 1
+            while True:
+                if not (OUTPUT_PATH / f"{currentMatch.movieName} - {KEYWORD}_{outIndex}.mp4").exists():
+                    outFilename = f"{currentMatch.movieName} - {KEYWORD}_{outIndex}.mp4"
+                    break
+                outIndex += 1
+
+            # Extract.
+            subprocess.run(
+                ["ffmpeg/ffmpeg",
+                 "-ss",
+                 str(currentMatch.in_time()),
+                 "-i",
+                 str(PATH_OF_MOVIES / currentMatch.movie / currentMatch.videoName),
+                 "-t",
+                 str(currentMatch.scene_duration()),
+                 "-c",
+                 "copy",
+                 "-avoid_negative_ts",
+                 "1",
+                 str(OUTPUT_PATH / outFilename)]
+            )
 
 if len(errorLog) > 0:
     for error in errorLog:
@@ -133,4 +219,6 @@ if len(errorLog) > 0:
     input()
 
 if len(matches) == 0:
-    print("\nNo match found.")
+    print("\nNo match found.\n")
+else:
+    print("\nDONE\n")
