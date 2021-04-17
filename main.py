@@ -50,7 +50,7 @@ except IndexError:
     print("Example Use: 'main.py potato'\n")
     sys.exit()
 
-# Second argument: Manual export or extract all scenes.
+# Second argument (optional): Manual export or extract all scenes.
 try:
     if sys.argv[2] == "c":
         outputDecision = "chooseExports"
@@ -59,15 +59,35 @@ try:
 except IndexError:
     outputDecision = "extractAll"
 
-# Third argument: Stretch the end of a scene for 'x' seconds.
+# Third argument (optional): Stretch the end of a scene for 'x' seconds.
 try:
     extra_output_seconds = sys.argv[3]
     extra_output_seconds = int(extra_output_seconds)
 except IndexError:
     extra_output_seconds = 3
 except ValueError:
-    print("\nExtra output seconds must be a number.")
-    sys.exit()
+    extra_output_seconds = 3
+
+# Fourth argument (optional): Ignore long events.
+# Pass 'shortS' to ignore events longer than 6 words.
+if "shortS" in sys.argv:
+    shortSentences = 1
+else:
+    shortSentences = 0
+# Pass 'vshortS' to ignore events longer than 3 words.
+if "vshortS" in sys.argv:
+    veryShortSentences = 1
+else:
+    veryShortSentences = 0
+
+# For debugging.
+"""
+KEYWORD = "random"
+veryShortSentences = 1
+shortSentences = 0
+outputDecision = "chooseExports"
+extra_output_seconds = 3
+"""
 
 movieNameRegex = re.compile(r"[-&'\w+\s]+")
 
@@ -100,7 +120,11 @@ for movie in allMovies:
         with open(PATH_OF_MOVIES / movie / subFile, encoding="utf8") as sub:
             subtitleEvents = sub.read().split("\n\n")[:-1]  # Last item is always blank.
     except UnicodeDecodeError:
-        errorLog.append(f"Subtitle file of {movie} is corrupted. The movie will be excluded.")
+        errorLog.append(
+            f"Subtitle file of {movie} is corrupted. The movie will be excluded."
+            + "\nTo solve this issue, open the subtitle file and go 'file -> save as'"
+            + "\nSave it as a '.srt' file with 'utf-8' encoding."
+        )
         continue
 
     # Search the keyword in the subtitle file.
@@ -118,7 +142,7 @@ for movie in allMovies:
 
             # Makes sure that the searched word is not a part of some other word.
             # As 'he' is a part of 'she'.
-            textRegex = re.compile(fr"(?<![\[(\w]){KEYWORD}(?![\[(\w])")
+            textRegex = re.compile(fr"(?<![\[(\w]){KEYWORD}(?![:\[(\w])")
             matchSearch = textRegex.search(subContent)
             try:
                 matchSearch.group()
@@ -138,7 +162,15 @@ for file in os.listdir(OUTPUT_PATH):
 
 # Extract the scenes.
 if outputDecision == "extractAll":
+    # Delete long events if the optional arguments are passed.
     for match in allMatchInstances:
+        if veryShortSentences == 1:
+            if len(match.subContent.split()) > 3:
+                continue
+        elif shortSentences == 1:
+            if len(match.subContent.split()) > 6:
+                continue
+
         # Find an available filename.
         outIndex = 1
         while True:
@@ -164,6 +196,20 @@ if outputDecision == "extractAll":
         )
 
 elif outputDecision == "chooseExports":
+    # Delete long events if the optional arguments are passed.
+    indicesToDelete = []
+    if veryShortSentences == 1:
+        for i, match in enumerate(allMatchInstances):
+            temp = match.subContent.split()
+            if len(match.subContent.split()) > 3:
+                indicesToDelete.append(i)
+    elif shortSentences == 1:
+        for i, match in enumerate(allMatchInstances):
+            if len(match.subContent.split()) > 6:
+                indicesToDelete.append(i)
+    for i in range(len(indicesToDelete) - 1, -1, -1):
+        del allMatchInstances[indicesToDelete[i]]
+
     exportedSegments = []
     if len(allMatchInstances) > 0:
         # Choose the segments to extract.
