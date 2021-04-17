@@ -6,29 +6,9 @@ import subprocess
 import sys
 
 
-PATH_OF_MOVIES = Path.cwd() / "movies"
+PATH_OF_MOVIES = Path("F:", "dizifilmfalan", "subtitleMatch")
 # WARNING: Every '.mp4' file in the output path will be deleted each time the script runs.
 OUTPUT_PATH = Path.cwd() / "output"
-
-try:
-    KEYWORD = sys.argv[1]
-except IndexError:
-    print("\nA word or a phrase is required to extract.\n")
-    print("Example Use: 'main.py potato'\n")
-    sys.exit()
-
-if not OUTPUT_PATH.exists():
-    OUTPUT_PATH.mkdir()
-
-try:
-    if sys.argv[2] == "c":
-        outputDecision = "chooseExports"
-    else:
-        outputDecision = "extractAll"
-except IndexError:
-    outputDecision = "extractAll"
-
-movieNameRegex = re.compile(r"[-&'\w+\s]+")
 
 
 class SubtitleEvent:
@@ -56,8 +36,40 @@ class SubtitleEvent:
     def scene_duration(self):
         inTime = datetime.datetime.strptime(self.in_time(), "%H:%M:%S.%f")
         outTime = datetime.datetime.strptime(self.out_time(), "%H:%M:%S.%f")
-        return (outTime - inTime).seconds + 3
+        return (outTime - inTime).seconds + extra_output_seconds
 
+
+if not OUTPUT_PATH.exists():
+    OUTPUT_PATH.mkdir()
+
+# First argument: Word or phrase to be searched.
+try:
+    KEYWORD = sys.argv[1].lower()
+except IndexError:
+    print("\nA word or a phrase is required to extract.\n")
+    print("Example Use: 'main.py potato'\n")
+    sys.exit()
+
+# Second argument: Manual export or extract all scenes.
+try:
+    if sys.argv[2] == "c":
+        outputDecision = "chooseExports"
+    else:
+        outputDecision = "extractAll"
+except IndexError:
+    outputDecision = "extractAll"
+
+# Third argument: Stretch the end of a scene for 'x' seconds.
+try:
+    extra_output_seconds = sys.argv[3]
+    extra_output_seconds = int(extra_output_seconds)
+except IndexError:
+    extra_output_seconds = 3
+except ValueError:
+    print("\nExtra output seconds must be a number.")
+    sys.exit()
+
+movieNameRegex = re.compile(r"[-&'\w+\s]+")
 
 allMovies = os.listdir(PATH_OF_MOVIES)
 matches = {}
@@ -84,8 +96,12 @@ for movie in allMovies:
         continue
 
     # Open the subtitle file.
-    with open(PATH_OF_MOVIES / movie / subFile) as sub:
-        subtitleEvents = sub.read().split("\n\n")[:-1]  # Last item is always blank.
+    try:
+        with open(PATH_OF_MOVIES / movie / subFile, encoding="utf8") as sub:
+            subtitleEvents = sub.read().split("\n\n")[:-1]  # Last item is always blank.
+    except UnicodeDecodeError:
+        errorLog.append(f"Subtitle file of {movie} is corrupted. The movie will be excluded.")
+        continue
 
     # Search the keyword in the subtitle file.
     for index, event in enumerate(subtitleEvents):
@@ -214,11 +230,15 @@ elif outputDecision == "chooseExports":
             )
 
 if len(errorLog) > 0:
+    os.system("cls")
+    print()
     for error in errorLog:
         print(error)
-    input()
+    print("\nPress enter to continue.")
+    input("> ")
 
 if len(matches) == 0:
     print("\nNo match found.\n")
 else:
+    os.system("cls")
     print("\nDONE\n")
