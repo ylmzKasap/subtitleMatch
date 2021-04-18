@@ -52,7 +52,7 @@ except IndexError:
 
 # Second argument (optional): Manual export or extract all scenes.
 try:
-    if sys.argv[2] == "c":
+    if sys.argv[2] == "-c":
         outputDecision = "chooseExports"
     else:
         outputDecision = "extractAll"
@@ -70,7 +70,7 @@ except ValueError:
 
 # For stretch to work when 'c' is not passed.
 try:
-    if sys.argv[2] != "c":
+    if sys.argv[2] != "-c":
         sys.argv[2] = int(sys.argv[2])
         extra_output_seconds = sys.argv[2]
 except IndexError:
@@ -224,7 +224,7 @@ elif outputDecision == "chooseExports":
     if len(allMatchInstances) > 0:
         # Choose the segments to extract.
         while True:
-            print("\nEnter 'exp' to end the selection. Enter '-' to delete the last decision.")
+            print("\nEnter 'exp' to end the selection. Enter '-' to delete the last selection.")
             print("\n\nEnter a number to extract its video segment:")
             for i, match in enumerate(allMatchInstances, 1):
                 print(f"\n{i}. {match.movieName} | {match.subContent}")
