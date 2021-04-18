@@ -1,46 +1,27 @@
-import datetime
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
 
+from data.subtitleclass import SubtitleEvent
 
 PATH_OF_MOVIES = Path("F:", "dizifilmfalan", "subtitleMatch")
 # WARNING: Every '.mp4' file in the output path will be deleted each time the script runs.
 OUTPUT_PATH = Path.cwd() / "output"
 
-
-class SubtitleEvent:
-    def __init__(self, event, movie, videoName):
-        splitEvent = event.split("\n")
-
-        self.movie = movie
-        self.videoName = videoName
-        self.movieName = movieNameRegex.search(movie).group().strip()
-        self.eventNumber = splitEvent[0]
-        self.timestamp = splitEvent[1]
-        self.subContent = ' '.join(splitEvent[2:])
-
-    def in_time(self):
-        splitTimestamp = self.timestamp.partition("-->")
-        inTimeParsed = datetime.datetime.strptime(splitTimestamp[0].strip(), "%H:%M:%S,%f")
-        newInTime = inTimeParsed - datetime.timedelta(seconds=2)
-        newInTime = newInTime.strftime("%H:%M:%S.%f")
-        return newInTime
-
-    def out_time(self):
-        splitTimestamp = self.timestamp.partition("-->")
-        return re.sub(",", ".", splitTimestamp[2].strip())
-
-    def scene_duration(self):
-        inTime = datetime.datetime.strptime(self.in_time(), "%H:%M:%S.%f")
-        outTime = datetime.datetime.strptime(self.out_time(), "%H:%M:%S.%f")
-        return (outTime - inTime).seconds + extra_output_seconds
-
-
 if not OUTPUT_PATH.exists():
     OUTPUT_PATH.mkdir()
+
+# Optional: Repeat the last extraction for the manual exports.
+# First argument: '-r'
+# Second argument: A value in seconds that will stretch the end of the clips longer.
+if sys.argv[1] == "-r":
+    try:
+        os.system(f"repeatlast.py {sys.argv[2]}")
+    except IndexError:
+        print("\nEnter a value as seconds to stretch the end of the video files.")
+    sys.exit()
 
 # First argument: Word or phrase to be searched.
 try:
@@ -98,8 +79,6 @@ shortSentences = 0
 outputDecision = "chooseExports"
 extra_output_seconds = 3
 """
-
-movieNameRegex = re.compile(r"[-&'\w+\s]+")
 
 allMovies = os.listdir(PATH_OF_MOVIES)
 matches = {}
@@ -161,7 +140,7 @@ for movie in allMovies:
 
             # Save the match info and create an instance.
             totalMatchNumber = len(matches) + 1
-            matches[f"match{totalMatchNumber}"] = SubtitleEvent(event, movie, movieFile)
+            matches[f"match{totalMatchNumber}"] = SubtitleEvent(event, movie, movieFile, extra_output_seconds)
 
 allMatchInstances = list(matches.values())
 
@@ -259,9 +238,13 @@ elif outputDecision == "chooseExports":
             exportedSegments.append(extractDecision)
             os.system("cls")
 
+        # Create a new list with the selected objects.
+        exportedInstances = []
         for exportNumber in exportedSegments:
             exportNumber = int(exportNumber)
-            currentMatch = allMatchInstances[exportNumber - 1]
+            exportedInstances.append(allMatchInstances[exportNumber - 1])
+
+        for currentMatch in exportedInstances:
             outIndex = 1
             while True:
                 if not (OUTPUT_PATH / f"{currentMatch.movieName} - {KEYWORD}_{outIndex}.mp4").exists():
@@ -284,6 +267,12 @@ elif outputDecision == "chooseExports":
                  "1",
                  str(OUTPUT_PATH / outFilename)]
             )
+
+    with open(Path("data", "lastExport.py"), "w") as lastExport:
+        lastExport.write(f"KEYWORD = \"{KEYWORD}\"\n")
+        lastExport.write(f"veryShortSentences = {veryShortSentences}\n")
+        lastExport.write(f"shortSentences = {shortSentences}\n")
+        lastExport.write(f"exportedSegments = {exportedSegments}\n")
 
 if len(errorLog) > 0:
     os.system("cls")

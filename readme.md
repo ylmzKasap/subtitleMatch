@@ -54,19 +54,23 @@ This way, every matching scene will be exported to the output path.
 ### Manual Selection
 After exporting the movies, going through them one by one to view their content can be time consuming.
 
-For this reason, if you pass `-c` as the **second argument**, you can view the matching subtitle events beforehand and choose the ones you like manually to export.
+For this reason, if you pass `-c` as the **second argument**, 
+you can view the matching subtitle events beforehand and choose the ones you like manually to export.
 
      main.py "thank you" -c
 
 ### Omitting Long Matches
-Sometimes a subtitle event can be really crowded and the phrase you are searching for may not be as emphasized as you want.
+Sometimes a subtitle event can be really crowded
+and the phrase you are searching for may not be as emphasized as you want.
 
-Passing `-vshort` or `-short` arguments will only match the events which are shorter than 4 and 7 words respectively.
+Passing `-vshort` or `-short` arguments will only match the events
+which are shorter than 4 and 7 words respectively.
 
     main.py "thank you" -c -short
 
 ### Stretching the Out Time
-If you exported a scene, but it ends very abruptly, you can stretch its out time by entering a value as seconds **as the second or third argument**. Default is 3 seconds.
+If you exported a scene, but it ends very abruptly,
+you can stretch its out time by entering a value as seconds **as the second or third argument**. Default is 3 seconds.
 
 All scenes exported as below will last 4 seconds longer.
 
@@ -76,3 +80,16 @@ All scenes exported as below will last 4 seconds longer.
 Similarly, you can use this feature with manual selection as well.
 
     main.py "thank you" -c 7 -vshort
+
+### Repeating the Previous Exports for Manual Extraction
+You may have selected and extracted several scenes by hand through passing `-c` argument. 
+However, the clips may end abruptly and you may need to reselect these subtitle events from scratch
+to stretch out their ending.
+
+To make this process easier, you can pass `-r` argument along with a value in seconds.
+
+
+    main.py -r 5
+
+
+This will repeat the last manual extraction by extending it 2 seconds longer, sincee the default value is 3 seconds.
