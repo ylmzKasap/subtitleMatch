@@ -68,14 +68,24 @@ except IndexError:
 except ValueError:
     extra_output_seconds = 3
 
-# Fourth argument (optional): Ignore long events.
-# Pass 'shortS' to ignore events longer than 6 words.
-if "shortS" in sys.argv:
+# For stretch to work when 'c' is not passed.
+try:
+    if sys.argv[2] != "c":
+        sys.argv[2] = int(sys.argv[2])
+        extra_output_seconds = sys.argv[2]
+except IndexError:
+    pass
+except ValueError:
+    pass
+
+# Optional argument: Ignore long events.
+# Pass '-short' to ignore events longer than 6 words.
+if "-short" in sys.argv:
     shortSentences = 1
 else:
     shortSentences = 0
-# Pass 'vshortS' to ignore events longer than 3 words.
-if "vshortS" in sys.argv:
+# Pass '-vshort' to ignore events longer than 3 words.
+if "-vshort" in sys.argv:
     veryShortSentences = 1
 else:
     veryShortSentences = 0
@@ -277,13 +287,15 @@ elif outputDecision == "chooseExports":
 
 if len(errorLog) > 0:
     os.system("cls")
-    print()
+    print("\nError Log:\n")
     for error in errorLog:
         print(error)
+        print()
     print("\nPress enter to continue.")
     input("> ")
 
 if len(matches) == 0:
+    os.system("cls")
     print("\nNo match found.\n")
 else:
     os.system("cls")
