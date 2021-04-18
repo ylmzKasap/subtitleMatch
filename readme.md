@@ -5,8 +5,7 @@
 Find and extract movie scenes from your archive for any word or phrase you like.
 
 ### Required Software
-`ffmpeg` is required for exporting the movies segments.
-\
+`ffmpeg` is required for exporting the movie segments.
 
 Download `ffmpeg` from:
 https://ffmpeg.org/download.html
@@ -31,20 +30,21 @@ Here is a sample archive structure:
 ```
 My_Movie_Archive/
     Coco (2017)/
-        Coco.2017.1080p.mp4         # Filenames are not important.
+        Coco.2017.1080p.mp4       # Filenames are not important.
         English_sub.srt
     WALL-E (2008)/
         WALL-E.2008.1080p.mkv
         English_sub.srt
     The Good, the Bad and the Ugly (1966)/
-	    The Good, the Bad and the Ugly (1966).mp4
+        The Good, the Bad and the Ugly (1966).mp4
         English_sub.srt
 ```
 
 ### Running the Script
-Make sure that project folder is in the system path, or create a separate batch file.
+Make sure that project folder is in the system path. Or you can create a separate batch file.
 
 Let's say that you want to extract every scene that includes the phrase "thank you".
+
 Launch the command prompt and run:
 
     main.py "thank you"
