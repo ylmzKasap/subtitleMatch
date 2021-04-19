@@ -22,7 +22,7 @@ After the download:
 ### Organizing the Files
 Before starting, you should edit the input and output paths on main.py.
 
-1. `PATH_OF_MOVIES` variable should have the path of your movie archive.
+1. `PATH_OF_MOVIES` constant should have the path of your movie archive.
 2. Each movie should have its own folder named after it. In the folder, there should be a video file and a subtitle file (.srt) for that particular movie.
 3. `OUTPUT_PATH` should lead to the path where you want the extracted scenes. Default is current working directory.
 
@@ -70,7 +70,7 @@ which are shorter than 4 and 7 words respectively.
 
 ### Stretching the Out Time
 If you exported a scene, but it ends very abruptly,
-you can stretch its out time by entering a value as seconds **as the second or third argument**. Default is 3 seconds.
+you can stretch its out time by entering a value in seconds **as the second or third argument** and extract again. Default is 3 seconds.
 
 All scenes exported as below will last 4 seconds longer.
 
@@ -92,4 +92,4 @@ To make this process easier, you can pass `-r` argument along with a value in se
     main.py -r 5
 
 
-This will repeat the last manual extraction by extending it 2 seconds longer, sincee the default value is 3 seconds.
+This will repeat the last manual extraction by extending it 2 seconds longer, since the default value is 3 seconds.

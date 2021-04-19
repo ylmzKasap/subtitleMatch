@@ -5,11 +5,12 @@ movieNameRegex = re.compile(r"[-&'\w+\s]+")
 
 
 class SubtitleEvent:
-    def __init__(self, event, movie, videoName, outSeconds):
+    def __init__(self, event, movie, videoName, hardcodedName, outSeconds):
         splitEvent = event.split("\n")
 
         self.movie = movie
         self.videoName = videoName
+        self.hardcodedName = hardcodedName
         self.movieName = movieNameRegex.search(movie).group().strip()
         self.eventNumber = splitEvent[0]
         self.timestamp = splitEvent[1]

@@ -1,4 +1,5 @@
-KEYWORD = "who cares"
-veryShortSentences = 0
-shortSentences = 1
-exportedSegments = ['6', '8']
+KEYWORD = "you"
+veryShortSentences = 1
+shortSentences = 0
+exportedSegments = ['4', '1']
+hardcodedVideos = 1

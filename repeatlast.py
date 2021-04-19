@@ -11,6 +11,7 @@ KEYWORD = lastExport.KEYWORD
 veryShortSentences = lastExport.veryShortSentences
 shortSentences = lastExport.shortSentences
 exportedSegments = lastExport.exportedSegments
+hardcodedVideos = lastExport.hardcodedVideos
 extra_output_seconds = int(sys.argv[1])
 
 
@@ -21,15 +22,21 @@ allMovies = os.listdir(PATH_OF_MOVIES)
 matches = {}
 errorLog = []
 
+print("\nSearching...")
+
 for movie in allMovies:
-    movieFound = subFound = 0
+    movieFound = subFound = hardcodedSub = 0
 
     # Locate the video and subtitle files for a specific movie.
     for filename in os.listdir(PATH_OF_MOVIES / movie):
         if filename.endswith(".mp4") or filename.endswith(".mkv"):
-            movieFile = filename
-            movieFound = 1
-        if filename.endswith(".srt"):
+            if "hardcodedSub" not in filename:
+                movieFile = filename
+                movieFound = 1
+            elif "hardcodedSub" in filename:
+                hardcodedName = filename
+                hardcodedSub = 1
+        elif filename.endswith(".srt"):
             subFile = filename
             subFound = 1
 
@@ -40,6 +47,8 @@ for movie in allMovies:
     if subFound == 0:
         errorLog.append(f"Could not locate the subtitle file for {movie}")
         continue
+    if hardcodedSub == 0:
+        hardcodedName = None
 
     # Open the subtitle file.
     try:
@@ -77,7 +86,8 @@ for movie in allMovies:
 
             # Save the match info and create an instance.
             totalMatchNumber = len(matches) + 1
-            matches[f"match{totalMatchNumber}"] = SubtitleEvent(event, movie, movieFile, extra_output_seconds)
+            matches[f"match{totalMatchNumber}"] = SubtitleEvent(
+                                                        event, movie, movieFile, hardcodedName, extra_output_seconds)
 
 allMatchInstances = list(matches.values())
 
@@ -106,11 +116,11 @@ for exportNumber in exportedSegments:
     exportNumber = int(exportNumber)
     exportedInstances.append(allMatchInstances[exportNumber - 1])
 
-for currentMatch in exportedInstances:
+for match in exportedInstances:
     outIndex = 1
     while True:
-        if not (OUTPUT_PATH / f"{currentMatch.movieName} - {KEYWORD}_{outIndex}.mp4").exists():
-            outFilename = f"{currentMatch.movieName} - {KEYWORD}_{outIndex}.mp4"
+        if not (OUTPUT_PATH / f"{match.movieName} - {KEYWORD}_{outIndex}.mp4").exists():
+            outFilename = f"{match.movieName} - {KEYWORD}_{outIndex}.mp4"
             break
         outIndex += 1
 
@@ -118,17 +128,35 @@ for currentMatch in exportedInstances:
     subprocess.run(
         ["ffmpeg/ffmpeg",
          "-ss",
-         str(currentMatch.in_time()),
+         str(match.in_time()),
          "-i",
-         str(PATH_OF_MOVIES / currentMatch.movie / currentMatch.videoName),
+         str(PATH_OF_MOVIES / match.movie / match.videoName),
          "-t",
-         str(currentMatch.scene_duration()),
+         str(match.scene_duration()),
          "-c",
          "copy",
          "-avoid_negative_ts",
          "1",
          str(OUTPUT_PATH / outFilename)]
     )
+
+    # Extract the segments for hardcoded videos.
+    if match.hardcodedName is not None and hardcodedVideos == 1:
+        outFilename = f"{KEYWORD}_{outIndex} - HARDCODED - {match.movieName}.mp4"
+        subprocess.run(
+            ["ffmpeg/ffmpeg",
+             "-ss",
+             str(match.in_time()),
+             "-i",
+             str(PATH_OF_MOVIES / match.movie / match.hardcodedName),
+             "-t",
+             str(match.scene_duration()),
+             "-c",
+             "copy",
+             "-avoid_negative_ts",
+             "1",
+             str(OUTPUT_PATH / outFilename)]
+        )
 
 if len(errorLog) > 0:
     os.system("cls")
