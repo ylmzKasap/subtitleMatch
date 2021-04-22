@@ -54,7 +54,7 @@ This way, every matching scene will be exported to the output path.
 ### Manual Selection
 After exporting the movies, going through them one by one to view their content can be time consuming.
 
-For this reason, if you pass `-c` as the **second argument**, 
+For this reason, if you pass `-c` argument, 
 you can view the matching subtitle events beforehand and choose the ones you like manually to export.
 
      main.py "thank you" -c
@@ -68,28 +68,44 @@ which are shorter than 4 and 7 words respectively.
 
     main.py "thank you" -c -short
 
-### Stretching the Out Time
-If you exported a scene, but it ends very abruptly,
-you can stretch its out time by entering a value in seconds **as the second or third argument** and extract again. Default is 3 seconds.
+### Pulling Back the Start Time
+If you exported a scene but it starts at the middle of a dialogue,
+you can pull back its starting time by entering a value in seconds as the **second argument**.
+
+
+    main.py "thank you" 6
+
+This way, the scene will start approximately 6 seconds earlier.
+
+**Note:** Since the video extraction process uses keyframes while extracting,
+editing the starting time may not be as precise as you want. Also, small adjustments may not even make a difference.
+
+On the bright side, this allows the videos to be exported a lot faster.
+
+### Stretching the Ending
+If the exported scene ends very abruptly,
+you can stretch its ending by entering a value in seconds as the **third argument after the start time** and extract again.
 
 All scenes exported as below will last 4 seconds longer.
 
-    main.py "thank you" 7 -vshort
+    main.py "thank you" 0 4
 
 
-Similarly, you can use this feature with manual selection as well.
+Similarly, you can use these features with other arguments as well.
 
-    main.py "thank you" -c 7 -vshort
+    main.py "thank you" 0 4 -c -vshort
 
 ### Repeating the Previous Exports for Manual Extraction
 You may have selected and extracted several scenes by hand through passing `-c` argument. 
-However, the clips may end abruptly and you may need to reselect these subtitle events from scratch
-to stretch out their ending.
+However, the clips may start or end abruptly and you may need to reselect these subtitle events from scratch
+to adjust their timing.
 
-To make this process easier, you can pass `-r` argument along with a value in seconds.
-
-
-    main.py -r 5
+To make this process easier, you can pass `-r` argument along with a starting
+and an ending value in seconds.
 
 
-This will repeat the last manual extraction by extending it 2 seconds longer, since the default value is 3 seconds.
+    main.py -r 2 5
+
+
+This will repeat the last manual extraction by pulling back its starting time 2 seconds earlier and
+extending its ending 5 seconds longer.

@@ -7,12 +7,30 @@ import sys
 from data import lastExport
 from data.subtitleclass import SubtitleEvent
 
+
+# Find an available filename.
+def find_filename(keyword, movieName):
+    outIndex = 1
+    fileExists = 0
+    while True:
+        for file in os.listdir(OUTPUT_PATH):
+            if f"{keyword}_{outIndex}" in file:
+                fileExists = 1
+                break
+        if fileExists == 0:
+            outFilename = f"{keyword}_{outIndex} - {movieName}.mp4"
+            return outFilename, outIndex
+        outIndex += 1
+        fileExists = 0
+
+
 KEYWORD = lastExport.KEYWORD
 veryShortSentences = lastExport.veryShortSentences
 shortSentences = lastExport.shortSentences
 exportedSegments = lastExport.exportedSegments
 hardcodedVideos = lastExport.hardcodedVideos
-extra_output_seconds = int(sys.argv[1])
+pull_back_seconds = int(sys.argv[1]) + 2
+extra_output_seconds = int(sys.argv[2]) + 3
 
 
 PATH_OF_MOVIES = Path("F:", "dizifilmfalan", "subtitleMatch")
@@ -29,11 +47,11 @@ for movie in allMovies:
 
     # Locate the video and subtitle files for a specific movie.
     for filename in os.listdir(PATH_OF_MOVIES / movie):
-        if filename.endswith(".mp4") or filename.endswith(".mkv"):
-            if "hardcodedSub" not in filename:
+        if filename.endswith(".mp4") or filename.endswith(".mkv") or filename.endswith(".avi"):
+            if "HARDCODED" not in filename.upper():
                 movieFile = filename
                 movieFound = 1
-            elif "hardcodedSub" in filename:
+            elif "HARDCODED" in filename.upper():
                 hardcodedName = filename
                 hardcodedSub = 1
         elif filename.endswith(".srt"):
@@ -87,7 +105,7 @@ for movie in allMovies:
             # Save the match info and create an instance.
             totalMatchNumber = len(matches) + 1
             matches[f"match{totalMatchNumber}"] = SubtitleEvent(
-                                                        event, movie, movieFile, hardcodedName, extra_output_seconds)
+                event, movie, movieFile, hardcodedName, pull_back_seconds, extra_output_seconds)
 
 allMatchInstances = list(matches.values())
 
@@ -117,12 +135,8 @@ for exportNumber in exportedSegments:
     exportedInstances.append(allMatchInstances[exportNumber - 1])
 
 for match in exportedInstances:
-    outIndex = 1
-    while True:
-        if not (OUTPUT_PATH / f"{match.movieName} - {KEYWORD}_{outIndex}.mp4").exists():
-            outFilename = f"{match.movieName} - {KEYWORD}_{outIndex}.mp4"
-            break
-        outIndex += 1
+
+    outFilename, outIndex = find_filename(KEYWORD, match.movieName)
 
     # Extract.
     subprocess.run(
@@ -157,6 +171,8 @@ for match in exportedInstances:
              "1",
              str(OUTPUT_PATH / outFilename)]
         )
+    elif match.hardcodedName is None and hardcodedVideos == 1:
+        errorLog.append(f"Could not locate hardcoded video file for {match.movieName}.")
 
 if len(errorLog) > 0:
     os.system("cls")

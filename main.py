@@ -13,12 +13,28 @@ OUTPUT_PATH = Path.cwd() / "output"
 if not OUTPUT_PATH.exists():
     OUTPUT_PATH.mkdir()
 
+
+def find_filename(keyword, movieName):
+    outIndex = 1
+    fileExists = 0
+    while True:
+        for file in os.listdir(OUTPUT_PATH):
+            if f"{keyword}_{outIndex}" in file:
+                fileExists = 1
+                break
+        if fileExists == 0:
+            outFilename = f"{keyword}_{outIndex} - {movieName}.mp4"
+            return outFilename, outIndex
+        outIndex += 1
+        fileExists = 0
+
+
 # Optional: Repeat the last extraction for the manual exports.
 # First argument: '-r'
 # Second argument: A value in seconds that will stretch the end of the clips longer.
 if sys.argv[1] == "-r":
     try:
-        os.system(f"repeatlast.py {sys.argv[2]}")
+        os.system(f"repeatlast.py {sys.argv[2]} {sys.argv[3]}")
     except IndexError:
         print("\nEnter a value as seconds to stretch the end of the video files.")
     sys.exit()
@@ -31,33 +47,35 @@ except IndexError:
     print("Example Use: 'main.py potato'\n")
     sys.exit()
 
-# Second argument (optional): Manual export or extract all scenes.
+
+# Second argument: Pull the beginning of a scene 'x' seconds back.
 try:
-    if sys.argv[2] == "-c":
+    pull_back_seconds = sys.argv[2]
+    pull_back_seconds = int(pull_back_seconds) + 2
+except IndexError:
+    pull_back_seconds = 2
+except ValueError:
+    pull_back_seconds = 2
+
+
+# Third argument (optional): Stretch the end of a scene for 'x' seconds.
+try:
+    extra_output_seconds = sys.argv[3]
+    extra_output_seconds = int(extra_output_seconds) + 3
+except IndexError:
+    extra_output_seconds = 3
+except ValueError:
+    extra_output_seconds = 3
+
+
+# # Optional argument: Manual export or extract all scenes.
+try:
+    if "-c" in sys.argv:
         outputDecision = "chooseExports"
     else:
         outputDecision = "extractAll"
 except IndexError:
     outputDecision = "extractAll"
-
-# Third argument (optional): Stretch the end of a scene for 'x' seconds.
-try:
-    extra_output_seconds = sys.argv[3]
-    extra_output_seconds = int(extra_output_seconds)
-except IndexError:
-    extra_output_seconds = 3
-except ValueError:
-    extra_output_seconds = 3
-
-# For stretch to work when 'c' is not passed.
-try:
-    if sys.argv[2] != "-c":
-        sys.argv[2] = int(sys.argv[2])
-        extra_output_seconds = sys.argv[2]
-except IndexError:
-    pass
-except ValueError:
-    pass
 
 # Optional argument: Ignore long events.
 # Pass '-short' to ignore events longer than 6 words.
@@ -80,10 +98,11 @@ else:
 # For debugging.
 """
 KEYWORD = "random"
-veryShortSentences = 1
-shortSentences = 0
 outputDecision = "chooseExports"
 extra_output_seconds = 3
+shortSentences = 0
+veryShortSentences = 1
+hardcodedVideos = 0
 """
 
 allMovies = os.listdir(PATH_OF_MOVIES)
@@ -97,11 +116,11 @@ for movie in allMovies:
 
     # Locate the video and subtitle files for a specific movie.
     for filename in os.listdir(PATH_OF_MOVIES / movie):
-        if filename.endswith(".mp4") or filename.endswith(".mkv"):
-            if "hardcodedSub" not in filename:
+        if filename.endswith(".mp4") or filename.endswith(".mkv") or filename.endswith("avi"):
+            if "HARDCODED" not in filename.upper():
                 movieFile = filename
                 movieFound = 1
-            elif "hardcodedSub" in filename:
+            elif "HARDCODED" in filename.upper():
                 hardcodedName = filename
                 hardcodedSub = 1
         if filename.endswith(".srt"):
@@ -117,6 +136,8 @@ for movie in allMovies:
         continue
     if hardcodedSub == 0:
         hardcodedName = None
+        if hardcodedVideos == 1 and outputDecision == "extractAll":
+            errorLog.append(f"Could not locate hardcoded video file for {movie}.")
 
     # Open the subtitle file.
     try:
@@ -155,20 +176,20 @@ for movie in allMovies:
             # Save the match info and create an instance.
             totalMatchNumber = len(matches) + 1
             matches[f"match{totalMatchNumber}"] = SubtitleEvent(
-                                                        event, movie, movieFile, hardcodedName, extra_output_seconds)
+                event, movie, movieFile, hardcodedName, pull_back_seconds, extra_output_seconds)
 
 allMatchInstances = list(matches.values())
-
-# Remove previous output files.
-for file in os.listdir(OUTPUT_PATH):
-    if file.endswith(".mp4"):
-        os.unlink(OUTPUT_PATH / file)
-
 os.system("cls")
+
 # Extract the scenes.
 if outputDecision == "extractAll":
-    # Delete long events if the optional arguments are passed.
+    # Remove previous output files.
+    for file in os.listdir(OUTPUT_PATH):
+        if file.endswith(".mp4"):
+            os.unlink(OUTPUT_PATH / file)
+
     for match in allMatchInstances:
+        # Delete long events if the optional arguments are passed.
         if veryShortSentences == 1:
             if len(match.subContent.split()) > 3:
                 continue
@@ -176,15 +197,10 @@ if outputDecision == "extractAll":
             if len(match.subContent.split()) > 6:
                 continue
 
-        # Find an available filename.
-        outIndex = 1
-        while True:
-            if not (OUTPUT_PATH / f"{KEYWORD}_{outIndex}_{match.movieName}.mp4").exists():
-                outFilename = f"{KEYWORD}_{outIndex}_{match.movieName}.mp4"
-                break
-            outIndex += 1
+        # Find an available file name.
+        outFilename, outIndex = find_filename(KEYWORD, match.movieName)
 
-        # Extract.
+        # Extract the segment.
         subprocess.run(
             ["ffmpeg/ffmpeg",
              "-ss",
@@ -223,35 +239,34 @@ elif outputDecision == "chooseExports":
     indicesToDelete = []
     if veryShortSentences == 1:
         for i, match in enumerate(allMatchInstances):
-            temp = match.subContent.split()
             if len(match.subContent.split()) > 3:
                 indicesToDelete.append(i)
     elif shortSentences == 1:
         for i, match in enumerate(allMatchInstances):
             if len(match.subContent.split()) > 6:
                 indicesToDelete.append(i)
+
+    # Delete longer sentences based on the preferences above.
     for i in range(len(indicesToDelete) - 1, -1, -1):
         del allMatchInstances[indicesToDelete[i]]
 
     exportedSegments = []
     if len(allMatchInstances) > 0:
+        for i, match in enumerate(allMatchInstances, 1):
+            print(f"\n{i}. {match.movieName} | {match.subContent}")
+        possibleExtractions = [str(i) for i in range(1, len(allMatchInstances) + 1)]
+        print("\nEnter 'exp' to end the selection. Enter '-' to delete the last selection.")
+        print("Enter a number to extract its video segment:")
         # Choose the segments to extract.
         while True:
-            print("\nEnter 'exp' to end the selection. Enter '-' to delete the last selection.")
-            print("\n\nEnter a number to extract its video segment:")
-            for i, match in enumerate(allMatchInstances, 1):
-                print(f"\n{i}. {match.movieName} | {match.subContent}")
-            possibleExtractions = [str(i) for i in range(1, len(allMatchInstances) + 1)]
-
             if len(exportedSegments) > 0:
-                print("\nSegments to be exported:")
+                print("\n\nSegments to be exported:")
                 print(', '.join(exportedSegments))
 
             extractDecision = input("> ").strip()
 
             if extractDecision == "-":
                 try:
-                    os.system("cls")
                     exportedSegments.pop()
                     continue
                 except IndexError:
@@ -261,16 +276,13 @@ elif outputDecision == "chooseExports":
                 break
 
             if extractDecision not in possibleExtractions:
-                os.system("cls")
                 print(f"\nThere are {len(allMatchInstances)} instances in total.")
                 continue
 
             if extractDecision in exportedSegments:
-                os.system("cls")
                 print("\nThis segment is already in the export list.")
                 continue
             exportedSegments.append(extractDecision)
-            os.system("cls")
 
         # Create a new list with the selected objects.
         exportedInstances = []
@@ -278,15 +290,16 @@ elif outputDecision == "chooseExports":
             exportNumber = int(exportNumber)
             exportedInstances.append(allMatchInstances[exportNumber - 1])
 
-        for match in exportedInstances:
-            outIndex = 1
-            while True:
-                if not (OUTPUT_PATH / f"{KEYWORD}_{outIndex}_{match.movieName}.mp4").exists():
-                    outFilename = f"{KEYWORD}_{outIndex}_{match.movieName}.mp4"
-                    break
-                outIndex += 1
+        # Remove previous output files.
+        for file in os.listdir(OUTPUT_PATH):
+            if file.endswith(".mp4"):
+                os.unlink(OUTPUT_PATH / file)
 
-            # Extract.
+        for match in exportedInstances:
+            # Find an available file name.
+            outFilename, outIndex = find_filename(KEYWORD, match.movieName)
+
+            # Extract the segment.
             subprocess.run(
                 ["ffmpeg/ffmpeg",
                  "-ss",
@@ -319,7 +332,10 @@ elif outputDecision == "chooseExports":
                      "1",
                      str(OUTPUT_PATH / outFilename)]
                 )
+            elif match.hardcodedName is None and hardcodedVideos == 1:
+                errorLog.append(f"Could not locate hardcoded video file for {match.movieName}.")
 
+    # Save the last selections.
     with open(Path("data", "lastExport.py"), "w") as lastExport:
         lastExport.write(f"KEYWORD = \"{KEYWORD}\"\n")
         lastExport.write(f"veryShortSentences = {veryShortSentences}\n")
