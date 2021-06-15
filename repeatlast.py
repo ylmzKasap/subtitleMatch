@@ -32,7 +32,6 @@ hardcodedVideos = lastExport.hardcodedVideos
 pull_back_seconds = int(sys.argv[1]) + 2
 extra_output_seconds = int(sys.argv[2]) + 3
 
-
 PATH_OF_MOVIES = Path("F:", "dizifilmfalan", "subtitleMatch")
 OUTPUT_PATH = Path.cwd() / "output"
 
@@ -93,19 +92,25 @@ for movie in allMovies:
             if subContent.endswith("]") or subContent.startswith(")"):
                 continue
 
-            # Makes sure that the searched word is not a part of some other word.
-            # As 'he' is a part of 'she'.
-            textRegex = re.compile(fr"(?<![\[(\w]){KEYWORD}(?![:\[(\w])")
-            matchSearch = textRegex.search(subContent)
-            try:
-                matchSearch.group()
-            except AttributeError:
+        # Skip speaker IDs.
+        if ":" in subContent:
+            colonSeparation = subContent.partition(":")
+            if KEYWORD in colonSeparation[0]:
                 continue
 
-            # Save the match info and create an instance.
-            totalMatchNumber = len(matches) + 1
-            matches[f"match{totalMatchNumber}"] = SubtitleEvent(
-                event, movie, movieFile, hardcodedName, pull_back_seconds, extra_output_seconds)
+        # Makes sure that the searched word is not a part of some other word.
+        # As 'he' is a part of 'she'.
+        textRegex = re.compile(fr"(?<![\[(\w]){KEYWORD}(?![:\])\w])")
+        matchSearch = textRegex.search(subContent)
+        try:
+            matchSearch.group()
+        except AttributeError:
+            continue
+
+        # Save the match info and create an instance.
+        totalMatchNumber = len(matches) + 1
+        matches[f"match{totalMatchNumber}"] = SubtitleEvent(
+            event, movie, movieFile, hardcodedName, pull_back_seconds, extra_output_seconds)
 
 allMatchInstances = list(matches.values())
 

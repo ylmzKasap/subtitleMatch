@@ -36,7 +36,8 @@ if sys.argv[1] == "-r":
     try:
         os.system(f"repeatlast.py {sys.argv[2]} {sys.argv[3]}")
     except IndexError:
-        print("\nEnter a value as seconds to stretch the end of the video files.")
+        print("\nSample Usage:")
+        print("\n>>> main.py -r 2 5\n")
     sys.exit()
 
 # First argument: Word or phrase to be searched.
@@ -157,16 +158,22 @@ for movie in allMovies:
         subContent = ' '.join(splitEvent[2:]).lower()
         subContent = re.sub(",", "", subContent)
 
-        # Skip SDH markers.
         if KEYWORD in subContent:
+            # Skip SDH markers.
             if subContent.startswith("[") or subContent.startswith("("):
                 continue
             if subContent.endswith("]") or subContent.startswith(")"):
                 continue
 
+            # Skip speaker IDs.
+            if ":" in subContent:
+                colonSeparation = subContent.partition(":")
+                if KEYWORD in colonSeparation[0]:
+                    continue
+
             # Makes sure that the searched word is not a part of some other word.
             # As 'he' is a part of 'she'.
-            textRegex = re.compile(fr"(?<![\[(\w]){KEYWORD}(?![:\[(\w])")
+            textRegex = re.compile(fr"(?<![\[(\w]){KEYWORD}(?![:\])\w])")
             matchSearch = textRegex.search(subContent)
             try:
                 matchSearch.group()
@@ -252,11 +259,15 @@ elif outputDecision == "chooseExports":
 
     exportedSegments = []
     if len(allMatchInstances) > 0:
+        # List all matching scenes.
+        print("\nScenes found:")
         for i, match in enumerate(allMatchInstances, 1):
             print(f"\n{i}. {match.movieName} | {match.subContent}")
+        print("_" * 100)
         possibleExtractions = [str(i) for i in range(1, len(allMatchInstances) + 1)]
         print("\nEnter 'exp' to end the selection. Enter '-' to delete the last selection.")
         print("Enter a number to extract its video segment:")
+
         # Choose the segments to extract.
         while True:
             if len(exportedSegments) > 0:
@@ -272,14 +283,14 @@ elif outputDecision == "chooseExports":
                 except IndexError:
                     continue
 
-            if extractDecision == "exp":
+            elif extractDecision == "exp":
                 break
 
-            if extractDecision not in possibleExtractions:
+            elif extractDecision not in possibleExtractions:
                 print(f"\nThere are {len(allMatchInstances)} instances in total.")
                 continue
 
-            if extractDecision in exportedSegments:
+            elif extractDecision in exportedSegments:
                 print("\nThis segment is already in the export list.")
                 continue
             exportedSegments.append(extractDecision)
