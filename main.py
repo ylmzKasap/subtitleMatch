@@ -16,17 +16,17 @@ if not OUTPUT_PATH.exists():
 
 def find_filename(keyword, movieName):
     outIndex = 1
-    fileExists = 0
+    fileExists = False
     while True:
         for file in os.listdir(OUTPUT_PATH):
             if f"{keyword}_{outIndex}" in file:
-                fileExists = 1
+                fileExists = True
                 break
-        if fileExists == 0:
+        if not fileExists:
             outFilename = f"{keyword}_{outIndex} - {movieName}.mp4"
             return outFilename, outIndex
         outIndex += 1
-        fileExists = 0
+        fileExists = False
 
 
 # Optional: Repeat the last extraction for the manual exports.
@@ -81,29 +81,29 @@ except IndexError:
 # Optional argument: Ignore long events.
 # Pass '-short' to ignore events longer than 6 words.
 if "-short" in sys.argv:
-    shortSentences = 1
+    shortSentences = True
 else:
-    shortSentences = 0
+    shortSentences = False
 # Pass '-vshort' to ignore events longer than 3 words.
 if "-vshort" in sys.argv:
-    veryShortSentences = 1
+    veryShortSentences = True
 else:
-    veryShortSentences = 0
+    veryShortSentences = False
 
 # Optional argument: Export hardcoded videos if they exist.
 if "-sub" in sys.argv:
-    hardcodedVideos = 1
+    hardcodedVideos = True
 else:
-    hardcodedVideos = 0
+    hardcodedVideos = False
 
 # For debugging.
 """
 KEYWORD = "random"
 outputDecision = "chooseExports"
 extra_output_seconds = 3
-shortSentences = 0
-veryShortSentences = 1
-hardcodedVideos = 0
+shortSentences = False
+veryShortSentences = True
+hardcodedVideos = False
 """
 
 allMovies = os.listdir(PATH_OF_MOVIES)
@@ -113,31 +113,33 @@ errorLog = []
 print("\nSearching...")
 
 for movie in allMovies:
-    movieFound = subFound = hardcodedSub = 0
+    movieFound = subFound = hardcodedSub = False
 
     # Locate the video and subtitle files for a specific movie.
     for filename in os.listdir(PATH_OF_MOVIES / movie):
         if filename.endswith(".mp4") or filename.endswith(".mkv") or filename.endswith("avi"):
             if "HARDCODED" not in filename.upper():
                 movieFile = filename
-                movieFound = 1
+                movieFound = True
             elif "HARDCODED" in filename.upper():
                 hardcodedName = filename
-                hardcodedSub = 1
+                hardcodedSub = True
         if filename.endswith(".srt"):
             subFile = filename
-            subFound = 1
+            subFound = True
 
     # Abort if there are missing video or subtitle files.
-    if movieFound == 0:
-        errorLog.append(f"Could not locate the video file for {movie}")
-        continue
-    if subFound == 0:
+    if not movieFound:
+        movieFile = None
+        if not hardcodedVideos:
+            errorLog.append(f"Could not locate the video file for {movie}")
+            continue
+    if not subFound:
         errorLog.append(f"Could not locate the subtitle file for {movie}")
         continue
-    if hardcodedSub == 0:
+    if not hardcodedSub:
         hardcodedName = None
-        if hardcodedVideos == 1 and outputDecision == "extractAll":
+        if hardcodedVideos and outputDecision == "extractAll":
             errorLog.append(f"Could not locate hardcoded video file for {movie}.")
 
     # Open the subtitle file.
@@ -162,7 +164,7 @@ for movie in allMovies:
             # Skip SDH markers.
             if subContent.startswith("[") or subContent.startswith("("):
                 continue
-            if subContent.endswith("]") or subContent.startswith(")"):
+            if subContent.endswith("]") or subContent.endswith(")"):
                 continue
 
             # Skip speaker IDs.
@@ -197,10 +199,10 @@ if outputDecision == "extractAll":
 
     for match in allMatchInstances:
         # Delete long events if the optional arguments are passed.
-        if veryShortSentences == 1:
+        if veryShortSentences:
             if len(match.subContent.split()) > 3:
                 continue
-        elif shortSentences == 1:
+        elif shortSentences:
             if len(match.subContent.split()) > 6:
                 continue
 
@@ -208,23 +210,24 @@ if outputDecision == "extractAll":
         outFilename, outIndex = find_filename(KEYWORD, match.movieName)
 
         # Extract the segment.
-        subprocess.run(
-            ["ffmpeg/ffmpeg",
-             "-ss",
-             str(match.in_time()),
-             "-i",
-             str(PATH_OF_MOVIES / match.movie / match.videoName),
-             "-t",
-             str(match.scene_duration()),
-             "-c",
-             "copy",
-             "-avoid_negative_ts",
-             "1",
-             str(OUTPUT_PATH / outFilename)]
-        )
+        if match.videoName is not None:
+            subprocess.run(
+                ["ffmpeg/ffmpeg",
+                 "-ss",
+                 str(match.in_time()),
+                 "-i",
+                 str(PATH_OF_MOVIES / match.movie / match.videoName),
+                 "-t",
+                 str(match.scene_duration()),
+                 "-c",
+                 "copy",
+                 "-avoid_negative_ts",
+                 "1",
+                 str(OUTPUT_PATH / outFilename)]
+            )
 
         # Extract the segments for hardcoded videos.
-        if match.hardcodedName is not None and hardcodedVideos == 1:
+        if match.hardcodedName is not None and hardcodedVideos:
             outFilename = f"{KEYWORD}_{outIndex} - HARDCODED - {match.movieName}.mp4"
             subprocess.run(
                 ["ffmpeg/ffmpeg",
@@ -244,11 +247,11 @@ if outputDecision == "extractAll":
 elif outputDecision == "chooseExports":
     # Delete long events if the optional arguments are passed.
     indicesToDelete = []
-    if veryShortSentences == 1:
+    if veryShortSentences:
         for i, match in enumerate(allMatchInstances):
             if len(match.subContent.split()) > 3:
                 indicesToDelete.append(i)
-    elif shortSentences == 1:
+    elif shortSentences:
         for i, match in enumerate(allMatchInstances):
             if len(match.subContent.split()) > 6:
                 indicesToDelete.append(i)
@@ -310,24 +313,25 @@ elif outputDecision == "chooseExports":
             # Find an available file name.
             outFilename, outIndex = find_filename(KEYWORD, match.movieName)
 
-            # Extract the segment.
-            subprocess.run(
-                ["ffmpeg/ffmpeg",
-                 "-ss",
-                 str(match.in_time()),
-                 "-i",
-                 str(PATH_OF_MOVIES / match.movie / match.videoName),
-                 "-t",
-                 str(match.scene_duration()),
-                 "-c",
-                 "copy",
-                 "-avoid_negative_ts",
-                 "1",
-                 str(OUTPUT_PATH / outFilename)]
-            )
+            if match.videoName is not None:
+                # Extract the segment.
+                subprocess.run(
+                    ["ffmpeg/ffmpeg",
+                     "-ss",
+                     str(match.in_time()),
+                     "-i",
+                     str(PATH_OF_MOVIES / match.movie / match.videoName),
+                     "-t",
+                     str(match.scene_duration()),
+                     "-c",
+                     "copy",
+                     "-avoid_negative_ts",
+                     "1",
+                     str(OUTPUT_PATH / outFilename)]
+                )
 
             # Extract the segments for hardcoded videos.
-            if match.hardcodedName is not None and hardcodedVideos == 1:
+            if match.hardcodedName is not None and hardcodedVideos:
                 outFilename = f"{KEYWORD}_{outIndex} - HARDCODED - {match.movieName}.mp4"
                 subprocess.run(
                     ["ffmpeg/ffmpeg",
@@ -343,7 +347,7 @@ elif outputDecision == "chooseExports":
                      "1",
                      str(OUTPUT_PATH / outFilename)]
                 )
-            elif match.hardcodedName is None and hardcodedVideos == 1:
+            elif match.hardcodedName is None and hardcodedVideos:
                 errorLog.append(f"Could not locate hardcoded video file for {match.movieName}.")
 
     # Save the last selections.
